@@ -1117,6 +1117,29 @@ const TIPO_A_CAT = {
   otro:      'otro',
 };
 
+// Mapeo de palabras clave en descripción BCR → categoría
+const DESC_A_CAT = [
+  { palabras: ['buseta','uber','taxi','transporte','bus'],          cat: 'transporte' },
+  { palabras: ['colegio','escuela','clases'],                       cat: 'educacion' },
+  { palabras: ['construplaza','epa','ferreteria','relay','electra'], cat: 'mantenimiento' },
+  { palabras: ['jardin','jardinero','vivero'],                      cat: 'mantenimiento' },
+  { palabras: ['netflix','youtube','disney','google','telecable','cable'], cat: 'entretenimiento' },
+  { palabras: ['seguridad','residencial'],                          cat: 'hogar' },
+  { palabras: ['iceele','electricidad','icetel','internet'],        cat: 'servicios' },
+  { palabras: ['municipalidad','mun '],                             cat: 'servicios' },
+  { palabras: ['prestam','hipotec'],                                cat: 'servicios' },
+  { palabras: ['farmacia','medicina','depax','leche magnesio'],     cat: 'farmacia' },
+  { palabras: ['gym','gimnasio','natacion','pesas'],                cat: 'cuidado_personal' },
+];
+
+function inferirCategoria(descripcion, tipoDefault) {
+  const desc = descripcion.toLowerCase();
+  for (const rule of DESC_A_CAT) {
+    if (rule.palabras.some(p => desc.includes(p))) return rule.cat;
+  }
+  return TIPO_A_CAT[tipoDefault] || 'otro';
+}
+
 function parseFecha(f) {
   if (!f) return '';
   if (f instanceof Date) return f.toISOString().split('T')[0];
@@ -1140,7 +1163,7 @@ function movimientos925ComoGastos() {
         id: 'mov925_' + m.id,
         fecha,
         descripcion: m.descripcion,
-        categoria: TIPO_A_CAT[m.tipo] || 'otro',
+        categoria: inferirCategoria(m.descripcion, m.tipo),
         monto: parseFloat(m.debito),
         pagado_por: '925',
         fuente: 'banco925',
