@@ -345,8 +345,8 @@ select.form-input { appearance:none; }
     </div>
     <div class="tabs" id="filter-tabs">
       <div class="tab-pill active" onclick="setFilter('todos')">Todos</div>
-      <div class="tab-pill" onclick="setFilter('yo')">Mis gastos</div>
-      <div class="tab-pill" onclick="setFilter('otro')">Del otro</div>
+      <div class="tab-pill" onclick="setFilter('usuario_jk')">Juank66</div>
+      <div class="tab-pill" onclick="setFilter('usuario_ve')">Vefall76</div>
       <div class="tab-pill" onclick="setFilter('banco925')">Banco 925</div>
       <div class="tab-pill" onclick="setFilter('supermercado')">Supermercado</div>
       <div class="tab-pill" onclick="setFilter('salud')">Salud</div>
@@ -1103,14 +1103,24 @@ const TIPO_A_CAT = {
   otro:      'otro',
 };
 
+function parseFecha(f) {
+  if (!f) return '';
+  if (f instanceof Date) return f.toISOString().split('T')[0];
+  const s = String(f).split('T')[0].trim();
+  // Manejar formato DD/MM/YYYY del BCR
+  if (s.includes('/')) {
+    const [dd, mm, yyyy] = s.split('/');
+    return `${yyyy}-${mm.padStart(2,'0')}-${dd.padStart(2,'0')}`;
+  }
+  return s;
+}
+
 function movimientos925ComoGastos() {
-  if (!state.movimientos925) return [];
+  if (!state.movimientos925 || !state.movimientos925.length) return [];
   return state.movimientos925
     .filter(m => parseFloat(m.debito) > 0 && !TIPOS_NO_GASTO.includes(m.tipo))
     .map(m => {
-      const fecha = m.fecha instanceof Date
-        ? m.fecha.toISOString().split('T')[0]
-        : String(m.fecha).split('T')[0];
+      const fecha = parseFecha(m.fecha);
       const parts = fecha.split('-');
       return {
         id: 'mov925_' + m.id,
@@ -1129,16 +1139,19 @@ function movimientos925ComoGastos() {
 }
 
 function gastosMes() {
+  const mes  = parseInt(state.mesFiltro);
+  const anio = parseInt(state.anioFiltro);
+
   const gTricount = state.gastos.filter(g =>
-    parseInt(g.mes) === state.mesFiltro && parseInt(g.anio) === state.anioFiltro
+    parseInt(g.mes) === mes && parseInt(g.anio) === anio
   );
   const g925 = movimientos925ComoGastos().filter(g =>
-    g.mes === state.mesFiltro && g.anio === state.anioFiltro
+    parseInt(g.mes) === mes && parseInt(g.anio) === anio
   );
   // Combinar evitando duplicados por id
   const ids = new Set(gTricount.map(g => g.id));
   const unicos925 = g925.filter(g => !ids.has(g.id));
-  return [...gTricount, ...unicos925].sort((a,b) => b.fecha.localeCompare(a.fecha));
+  return [...gTricount, ...unicos925].sort((a,b) => String(b.fecha).localeCompare(String(a.fecha)));
 }
 
 // ============================================================
@@ -1190,10 +1203,11 @@ function renderGastos() {
   document.getElementById('mes-label-gastos').textContent = MESES[state.mesFiltro] + ' ' + state.anioFiltro;
   let gm = gastosMes();
 
-  if (state.filtro === 'yo')       gm = gm.filter(g => g.pagado_por === state.user.id);
-  if (state.filtro === 'otro')     gm = gm.filter(g => g.pagado_por !== state.user.id);
-  if (state.filtro === 'banco925') gm = gm.filter(g => g.fuente === 'banco925');
-  if (!['todos','yo','otro','banco925'].includes(state.filtro)) gm = gm.filter(g => g.categoria === state.filtro);
+  if (state.filtro === 'usuario_jk')  gm = gm.filter(g => g.pagado_por === 'jk');
+  if (state.filtro === 'usuario_ve')  gm = gm.filter(g => g.pagado_por === 've');
+  if (state.filtro === 'banco925')    gm = gm.filter(g => g.fuente === 'banco925');
+  const filtrosEspeciales = ['todos','usuario_jk','usuario_ve','banco925'];
+  if (!filtrosEspeciales.includes(state.filtro)) gm = gm.filter(g => g.categoria === state.filtro);
 
   const el = document.getElementById('gastos-list');
   if (gm.length === 0) {
