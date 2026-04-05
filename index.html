@@ -364,6 +364,7 @@ select.form-input { appearance:none; }
       <div class="tab-pill" onclick="setFilter('entretenimiento')">Entretenimiento</div>
       <div class="tab-pill" onclick="setFilter('ropa')">Ropa</div>
       <div class="tab-pill" onclick="setFilter('mascotas')">Mascotas</div>
+      <div class="tab-pill" onclick="setFilter('empleada')">Empleada</div>
     </div>
     <div class="scroll-area fadein" id="gastos-list">
       <div class="empty"><svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5M2 17l10 5 10-5M2 12l10 5 10-5"/></svg><p>Sin gastos</p></div>
@@ -940,6 +941,7 @@ const CATEGORIAS = [
   { key:'entretenimiento', label:'Entretenimiento', emoji:'🎬' },
   { key:'servicios',       label:'Servicios',       emoji:'💡' },
   { key:'mascotas',        label:'Mascotas',        emoji:'🐾' },
+  { key:'empleada',        label:'Empleada',        emoji:'👩‍🍳' },
   { key:'otro',            label:'Otro',            emoji:'📦' },
 ];
 
@@ -1931,6 +1933,7 @@ const PRESUPUESTO_BASE = {
   entretenimiento:  { monto: 67000,  recurrente: false },
   servicios:        { monto: 160000, recurrente: true  },
   mascotas:         { monto: 10000,  recurrente: false },
+  empleada:         { monto: 0,      recurrente: true  },
   otro:             { monto: 50000,  recurrente: false },
 };
 
