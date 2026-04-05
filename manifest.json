@@ -2,13 +2,18 @@
   "name": "Gastos Hogar",
   "short_name": "Hogar",
   "description": "Control de gastos del hogar para JK y Vero",
-  "start_url": "/",
+  "start_url": "/gastos-hogar/",
+  "scope": "/gastos-hogar/",
   "display": "standalone",
   "background_color": "#0a0f1e",
   "theme_color": "#0a0f1e",
   "orientation": "portrait",
   "icons": [
-    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+    {
+      "src": "icon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
   ]
 }
