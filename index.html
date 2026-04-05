@@ -309,15 +309,20 @@ select.form-input { appearance:none; }
             </div>
           </div>
           <div style="flex:1;">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
               <div style="width:10px;height:10px;border-radius:3px;background:var(--jk);"></div>
               <span style="font-size:12px;color:var(--text2);">Juank66</span>
               <span style="font-size:12px;font-family:var(--mono);margin-left:auto;" id="jk-total-home">₡0</span>
             </div>
-            <div style="display:flex;align-items:center;gap:8px;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
               <div style="width:10px;height:10px;border-radius:3px;background:var(--ve);"></div>
               <span style="font-size:12px;color:var(--text2);">Vefall76</span>
               <span style="font-size:12px;font-family:var(--mono);margin-left:auto;" id="ve-total-home">₡0</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div style="width:10px;height:10px;border-radius:3px;background:#f59e0b;"></div>
+              <span style="font-size:12px;color:var(--text2);">Banco 925</span>
+              <span style="font-size:12px;font-family:var(--mono);margin-left:auto;" id="total-925-home">₡0</span>
             </div>
           </div>
         </div>
@@ -1166,11 +1171,12 @@ function cargarInicio() {
   document.getElementById('mes-label-inicio').textContent = MESES[state.mesFiltro];
 
   const gm = gastosMes();
-  const totalMes = gm.reduce((s,g) => s + parseFloat(g.monto||0), 0);
-  const miTotal  = gm.filter(g => g.pagado_por === u.id).reduce((s,g) => s + parseFloat(g.monto||0), 0);
-  const jkTotal  = gm.filter(g => g.pagado_por === 'jk').reduce((s,g) => s + parseFloat(g.monto||0), 0);
-  const veTotal  = gm.filter(g => g.pagado_por === 've').reduce((s,g) => s + parseFloat(g.monto||0), 0);
-  const miPct    = totalMes > 0 ? Math.round(miTotal/totalMes*100) : 0;
+  const totalMes  = gm.reduce((s,g) => s + parseFloat(g.monto||0), 0);
+  const miTotal   = gm.filter(g => g.pagado_por === u.id && g.fuente !== 'banco925').reduce((s,g) => s + parseFloat(g.monto||0), 0);
+  const jkTotal   = gm.filter(g => g.pagado_por === 'jk' && g.fuente !== 'banco925').reduce((s,g) => s + parseFloat(g.monto||0), 0);
+  const veTotal   = gm.filter(g => g.pagado_por === 've' && g.fuente !== 'banco925').reduce((s,g) => s + parseFloat(g.monto||0), 0);
+  const total925  = gm.filter(g => g.fuente === 'banco925' || g.pagado_por === '925').reduce((s,g) => s + parseFloat(g.monto||0), 0);
+  const miPct     = totalMes > 0 ? Math.round(miTotal/totalMes*100) : 0;
 
   document.getElementById('mis-gastos').textContent = fmt(miTotal);
   document.getElementById('mis-gastos-sub').textContent = miPct + '% del total';
@@ -1178,8 +1184,10 @@ function cargarInicio() {
   document.getElementById('jk-total-home').textContent = fmt(jkTotal);
   document.getElementById('ve-total-home').textContent = fmt(veTotal);
   document.getElementById('dist-pct').textContent = miPct + '%';
+  const el925home = document.getElementById('total-925-home');
+  if (el925home) el925home.textContent = fmt(total925);
 
-  dibujarDonut('dist-chart', [jkTotal, veTotal], ['#3b82f6','#10b981']);
+  dibujarDonut('dist-chart', [jkTotal, veTotal, total925], ['#3b82f6','#10b981','#f59e0b']);
 
   // Últimos 5 gastos
   const ult = [...gm].slice(0, 5);
