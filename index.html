@@ -950,16 +950,21 @@ const MESES = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agos
 // ============================================================
 async function api(accion, body = {}) {
   const url = API_URL;
-  if (!url) {
-    // Modo demo sin API
-    return { ok: false, error: 'API no configurada' };
-  }
+  if (!url) return { ok: false, error: 'API no configurada' };
   try {
-    const res = await fetch(url + '?accion=' + accion + '&userId=' + (state.user?.id||'') + '&pin=' + state.pin, {
+    const userId = body.userId || state.user?.id || '';
+    const pin    = body.pin    || state.pin || '';
+    const qs     = `?accion=${accion}&userId=${userId}&pin=${pin}`;
+    const res = await fetch(url + qs, {
       method: 'POST',
-      body: JSON.stringify({ ...body, accion, userId: state.user?.id, pin: state.pin }),
+      mode: 'cors',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ ...body, accion, userId, pin }),
     });
-    return await res.json();
+    if (!res.ok) return { ok: false, error: 'HTTP ' + res.status };
+    const text = await res.text();
+    try { return JSON.parse(text); }
+    catch(e) { return { ok: false, error: 'Respuesta inválida: ' + text.substring(0,100) }; }
   } catch(e) {
     return { ok: false, error: e.message };
   }
@@ -1002,10 +1007,18 @@ function updatePinDots() {
 }
 
 async function doLogin() {
-  // Si no hay API configurada, entrar en modo demo
+  const demos = {
+    jk: { id:'jk', nombre:'Juank66',  color:'#185FA5' },
+    ve: { id:'ve', nombre:'Vefall76', color:'#1D9E75' }
+  };
+
+  // Guardar PIN local por usuario (se actualiza al entrar correctamente)
+  const pinLocalKey = 'pin_' + state.selectedUser;
+  const pinLocal = localStorage.getItem(pinLocalKey) || '1234';
+
+  // Sin API — modo demo con PIN local
   if (!API_URL) {
-    const demos = { jk: { id:'jk', nombre:'Juank66', color:'#185FA5' }, ve: { id:'ve', nombre:'Vefall76', color:'#1D9E75' } };
-    if (state.pin === '1234') {
+    if (state.pin === pinLocal) {
       loginSuccess(demos[state.selectedUser]);
     } else {
       showToast('PIN incorrecto');
@@ -1014,13 +1027,34 @@ async function doLogin() {
     }
     return;
   }
-  const res = await api('login', { userId: state.selectedUser, pin: state.pin });
-  if (res.ok) {
-    loginSuccess(res.usuario);
-  } else {
-    showToast('PIN incorrecto');
-    state.pin = '';
-    updatePinDots();
+
+  // Con API — intentar contra el servidor
+  try {
+    const res = await api('login', { userId: state.selectedUser, pin: state.pin });
+    if (res.ok) {
+      // Guardar PIN localmente para acceso offline
+      localStorage.setItem(pinLocalKey, state.pin);
+      loginSuccess(res.usuario);
+    } else {
+      // Intentar con PIN guardado localmente (modo offline)
+      if (state.pin === pinLocal) {
+        loginSuccess(demos[state.selectedUser]);
+      } else {
+        showToast('PIN incorrecto');
+        state.pin = '';
+        updatePinDots();
+      }
+    }
+  } catch(e) {
+    // Error de red — intentar con PIN local
+    if (state.pin === pinLocal) {
+      showToast('Sin conexión — entrando con PIN guardado');
+      loginSuccess(demos[state.selectedUser]);
+    } else {
+      showToast('PIN incorrecto');
+      state.pin = '';
+      updatePinDots();
+    }
   }
 }
 
@@ -2408,6 +2442,7 @@ async function confirmarNuevoPin() {
   }
   state.pin = pinNuevo;
   localStorage.setItem('pin', pinNuevo);
+  localStorage.setItem('pin_' + state.user.id, pinNuevo);
   cerrarDrawer('pin-overlay');
   showToast('PIN cambiado correctamente ✓');
 }
