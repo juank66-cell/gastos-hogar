@@ -902,6 +902,7 @@ const state = {
   selectedUser: null,
   gastos: [],
   sobres: [],
+  movimientos925: [],
   movBCR: [],
   filtro: 'todos',
   mesFiltro: new Date().getMonth() + 1,
@@ -1057,7 +1058,7 @@ function navTo(screen) {
 // CARGA DE DATOS
 // ============================================================
 async function cargarTodo() {
-  await Promise.all([cargarGastos(), cargarSobres()]);
+  await Promise.all([cargarGastos(), cargarSobres(), cargarMovimientos925()]);
   cargarInicio();
 }
 
@@ -1079,8 +1080,65 @@ async function cargarSobres() {
   if (res.ok) state.sobres = res.sobres;
 }
 
+async function cargarMovimientos925() {
+  if (!API_URL) {
+    state.movimientos925 = movimientos925Demo();
+    return;
+  }
+  const res = await api('listarMovimientos', {});
+  if (res.ok) state.movimientos925 = res.movimientos || [];
+}
+
+// Tipos de movimientos que NO son gastos reales
+const TIPOS_NO_GASTO = ['aporte','liquidacion','interes'];
+
+// Mapeo tipo BCR → categoría app
+const TIPO_A_CAT = {
+  hipoteca:  'servicios',
+  servicio:  'servicios',
+  educacion: 'educacion',
+  hogar:     'hogar',
+  impuesto:  'servicios',
+  pago:      'hogar',
+  otro:      'otro',
+};
+
+function movimientos925ComoGastos() {
+  if (!state.movimientos925) return [];
+  return state.movimientos925
+    .filter(m => parseFloat(m.debito) > 0 && !TIPOS_NO_GASTO.includes(m.tipo))
+    .map(m => {
+      const fecha = m.fecha instanceof Date
+        ? m.fecha.toISOString().split('T')[0]
+        : String(m.fecha).split('T')[0];
+      const parts = fecha.split('-');
+      return {
+        id: 'mov925_' + m.id,
+        fecha,
+        descripcion: m.descripcion,
+        categoria: TIPO_A_CAT[m.tipo] || 'otro',
+        monto: parseFloat(m.debito),
+        pagado_por: '925',
+        fuente: 'banco925',
+        mes: parseInt(parts[1]),
+        anio: parseInt(parts[0]),
+        timestamp: m.timestamp || '',
+        editado: false,
+      };
+    });
+}
+
 function gastosMes() {
-  return state.gastos.filter(g => parseInt(g.mes) === state.mesFiltro && parseInt(g.anio) === state.anioFiltro);
+  const gTricount = state.gastos.filter(g =>
+    parseInt(g.mes) === state.mesFiltro && parseInt(g.anio) === state.anioFiltro
+  );
+  const g925 = movimientos925ComoGastos().filter(g =>
+    g.mes === state.mesFiltro && g.anio === state.anioFiltro
+  );
+  // Combinar evitando duplicados por id
+  const ids = new Set(gTricount.map(g => g.id));
+  const unicos925 = g925.filter(g => !ids.has(g.id));
+  return [...gTricount, ...unicos925].sort((a,b) => b.fecha.localeCompare(a.fecha));
 }
 
 // ============================================================
@@ -1504,56 +1562,24 @@ function renderBCRPreview(movs) {
 async function importarBCR() {
   if (state.movBCR.length === 0) return;
 
-  // Clasificar débitos como gastos banco 925 (excluir aportes, liquidaciones e intereses)
-  const tiposExcluir = ['aporte','liquidacion','interes'];
-  const gastosNoCubiertos = ['hipoteca','servicio','educacion','hogar','impuesto','pago'];
-
-  const gastosParaRegistrar = state.movBCR
-    .filter(m => m.debito > 0 && !tiposExcluir.includes(m.tipo))
-    .map(m => {
-      const fecha = m.fecha;
-      const parts = fecha.split('-');
-      // Mapear tipo BCR a categoría de la app
-      const catMap = {
-        hipoteca:  'servicios',
-        servicio:  'servicios',
-        educacion: 'educacion',
-        hogar:     'hogar',
-        impuesto:  'servicios',
-        pago:      'hogar',
-        otro:      'otro',
-      };
-      return {
-        id: 'bcr_' + m.documento,
-        fecha,
-        descripcion: m.descripcion,
-        categoria: catMap[m.tipo] || 'otro',
-        monto: m.debito,
-        pagado_por: '925',
-        fuente: 'banco925',
-        mes: parseInt(parts[1]),
-        anio: parseInt(parts[0]),
-        timestamp: new Date().toISOString(),
-        editado: false,
-      };
-    });
-
-  // Importar movimientos al historial BCR
   if (API_URL) {
     const res = await api('importarBCR', { movimientos: state.movBCR });
-    // También registrar como gastos banco 925
-    for (const g of gastosParaRegistrar) {
-      await api('agregarGasto', g);
+    if (res.ok) {
+      // Recargar movimientos desde el servidor
+      await cargarMovimientos925();
+      showToast(res.agregados + ' movimientos importados a la 925');
+    } else {
+      showToast('Error al importar');
     }
-    showToast(`${res.agregados || 0} movimientos + ${gastosParaRegistrar.length} gastos importados`);
   } else {
-    // Modo demo: agregar a estado local
-    gastosParaRegistrar.forEach(g => {
-      if (!state.gastos.find(x => x.id === g.id)) {
-        state.gastos.unshift(g);
+    // Modo demo: agregar movimientos al estado local
+    state.movimientos925 = state.movimientos925 || [];
+    state.movBCR.forEach(m => {
+      if (!state.movimientos925.find(x => x.id === m.documento + '_' + m.fecha)) {
+        state.movimientos925.push({ ...m, id: m.documento + '_' + m.fecha });
       }
     });
-    showToast(gastosParaRegistrar.length + ' gastos banco 925 registrados');
+    showToast(state.movBCR.length + ' movimientos procesados');
   }
 
   document.getElementById('bcr-actions').style.display = 'none';
@@ -1706,6 +1732,26 @@ function datosDemo() {
     {id:'d3',fecha:`${a}-${String(m).padStart(2,'0')}-05`,descripcion:'Arelys',categoria:'hogar',monto:65000,pagado_por:'jk',mes:m,anio:a},
     {id:'d4',fecha:`${a}-${String(m).padStart(2,'0')}-07`,descripcion:'Maxi Pali',categoria:'supermercado',monto:42461,pagado_por:'jk',mes:m,anio:a},
     {id:'d5',fecha:`${a}-${String(m).padStart(2,'0')}-10`,descripcion:'Psiquiatra',categoria:'salud',monto:75000,pagado_por:'ve',mes:m,anio:a},
+  ];
+}
+
+function movimientos925Demo() {
+  const hoy = new Date();
+  const m = hoy.getMonth()+1, a = hoy.getFullYear();
+  const mes = String(m).padStart(2,'0');
+  return [
+    { id:'mov1', fecha:`${a}-${mes}-01`, descripcion:'DTR TIEMPOREAL SINPE/Colegio Matias Santa Teresa', debito:316000, credito:0, tipo:'educacion' },
+    { id:'mov2', fecha:`${a}-${mes}-01`, descripcion:'DTR TIEMPOREAL SINPE/Seguridad Casa 6g',           debito:35000,  credito:0, tipo:'hogar' },
+    { id:'mov3', fecha:`${a}-${mes}-01`, descripcion:'DTR TIEMPOREAL SINPE/buseta para transporte',      debito:75000,  credito:0, tipo:'educacion' },
+    { id:'mov4', fecha:`${a}-${mes}-04`, descripcion:'ND AH ICEELE BANCOBC/ICEELE electricidad',         debito:62890,  credito:0, tipo:'servicio' },
+    { id:'mov5', fecha:`${a}-${mes}-02`, descripcion:'PAGO AUTOMAT PRESTAM hipoteca 10 mill',            debito:109324, credito:0, tipo:'hipoteca' },
+    { id:'mov6', fecha:`${a}-${mes}-10`, descripcion:'COMPRAS EN COMERCIOS/NETFLIX.COM',                 debito:11922,  credito:0, tipo:'servicio' },
+    { id:'mov7', fecha:`${a}-${mes}-20`, descripcion:'PAGO AUTOMAT PRESTAM hipoteca 15 mill',            debito:149348, credito:0, tipo:'hipoteca' },
+    { id:'mov8', fecha:`${a}-${mes}-01`, descripcion:'DB AH MUN.ALAJUELA/MUN ALAJUE502340600',           debito:16376,  credito:0, tipo:'impuesto' },
+    { id:'mov9', fecha:`${a}-${mes}-01`, descripcion:'DB AH TV CABLE/TELECABLE 3508937',                 debito:30050,  credito:0, tipo:'servicio' },
+    // Aportes (no son gastos)
+    { id:'mov10',fecha:`${a}-${mes}-01`, descripcion:'TRANSFERENC BANCOBCR/APORTE QUINCENAL',            debito:0, credito:575000, tipo:'aporte' },
+    { id:'mov11',fecha:`${a}-${mes}-16`, descripcion:'TRANSFERENC BANCOBCR/APORTE QUINCENAL',            debito:0, credito:575000, tipo:'aporte' },
   ];
 }
 
