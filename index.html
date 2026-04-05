@@ -355,8 +355,15 @@ select.form-input { appearance:none; }
       <div class="tab-pill" onclick="setFilter('banco925')">Banco 925</div>
       <div class="tab-pill" onclick="setFilter('supermercado')">Supermercado</div>
       <div class="tab-pill" onclick="setFilter('salud')">Salud</div>
+      <div class="tab-pill" onclick="setFilter('farmacia')">Farmacia</div>
       <div class="tab-pill" onclick="setFilter('hogar')">Hogar</div>
+      <div class="tab-pill" onclick="setFilter('mantenimiento')">Mantenimiento</div>
       <div class="tab-pill" onclick="setFilter('educacion')">Educación</div>
+      <div class="tab-pill" onclick="setFilter('clases_extra')">Clases extra</div>
+      <div class="tab-pill" onclick="setFilter('cuidado_personal')">Cuido personal</div>
+      <div class="tab-pill" onclick="setFilter('entretenimiento')">Entretenimiento</div>
+      <div class="tab-pill" onclick="setFilter('ropa')">Ropa</div>
+      <div class="tab-pill" onclick="setFilter('mascotas')">Mascotas</div>
     </div>
     <div class="scroll-area fadein" id="gastos-list">
       <div class="empty"><svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5M2 17l10 5 10-5M2 12l10 5 10-5"/></svg><p>Sin gastos</p></div>
@@ -920,18 +927,20 @@ const state = {
 };
 
 const CATEGORIAS = [
-  { key:'supermercado', label:'Supermercado', emoji:'🛒' },
-  { key:'salud',        label:'Salud',        emoji:'🏥' },
-  { key:'hogar',        label:'Hogar',        emoji:'🏠' },
-  { key:'educacion',    label:'Educación',     emoji:'📚' },
-  { key:'ropa',         label:'Ropa',          emoji:'👕' },
-  { key:'transporte',   label:'Transporte',    emoji:'🚌' },
-  { key:'restaurante',  label:'Restaurante',   emoji:'🍽️' },
-  { key:'entretenimiento', label:'Entret.',   emoji:'🎬' },
-  { key:'suplementos',  label:'Suplementos',  emoji:'💪' },
-  { key:'servicios',    label:'Servicios',    emoji:'💡' },
-  { key:'mascotas',     label:'Mascotas',     emoji:'🐾' },
-  { key:'otro',         label:'Otro',         emoji:'📦' },
+  { key:'supermercado',    label:'Supermercado',   emoji:'🛒' },
+  { key:'salud',           label:'Salud',           emoji:'🏥' },
+  { key:'farmacia',        label:'Farmacia',        emoji:'💊' },
+  { key:'hogar',           label:'Hogar',           emoji:'🏠' },
+  { key:'mantenimiento',   label:'Mantenimiento',   emoji:'🔧' },
+  { key:'educacion',       label:'Educación',       emoji:'📚' },
+  { key:'clases_extra',    label:'Clases extra',    emoji:'✏️' },
+  { key:'ropa',            label:'Ropa',            emoji:'👕' },
+  { key:'cuidado_personal',label:'Cuido personal',  emoji:'💪' },
+  { key:'transporte',      label:'Transporte',      emoji:'🚌' },
+  { key:'entretenimiento', label:'Entretenimiento', emoji:'🎬' },
+  { key:'servicios',       label:'Servicios',       emoji:'💡' },
+  { key:'mascotas',        label:'Mascotas',        emoji:'🐾' },
+  { key:'otro',            label:'Otro',            emoji:'📦' },
 ];
 
 const MESES = ['','Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
@@ -1852,18 +1861,20 @@ function setPresupuestoMes(mes, anio, cat, monto, recurrente) {
 
 // Presupuesto base predeterminado (basado en datos de marzo)
 const PRESUPUESTO_BASE = {
-  supermercado:    { monto: 793000, recurrente: true  },
-  educacion:       { monto: 419000, recurrente: true  },
-  salud:           { monto: 329000, recurrente: true  },
-  hogar:           { monto: 394000, recurrente: true  },
-  servicios:       { monto: 160000, recurrente: true  },
-  suplementos:     { monto: 42000,  recurrente: false },
-  ropa:            { monto: 76000,  recurrente: false },
-  entretenimiento: { monto: 67000,  recurrente: false },
-  transporte:      { monto: 0,      recurrente: true  },
-  restaurante:     { monto: 0,      recurrente: false },
-  mascotas:        { monto: 10000,  recurrente: false },
-  otro:            { monto: 50000,  recurrente: false },
+  supermercado:     { monto: 793000, recurrente: true  },
+  salud:            { monto: 329000, recurrente: true  },
+  farmacia:         { monto: 30000,  recurrente: true  },
+  hogar:            { monto: 394000, recurrente: true  },
+  mantenimiento:    { monto: 19000,  recurrente: true  },
+  educacion:        { monto: 391000, recurrente: true  },
+  clases_extra:     { monto: 28000,  recurrente: true  },
+  ropa:             { monto: 76000,  recurrente: false },
+  cuidado_personal: { monto: 42000,  recurrente: false },
+  transporte:       { monto: 0,      recurrente: true  },
+  entretenimiento:  { monto: 67000,  recurrente: false },
+  servicios:        { monto: 160000, recurrente: true  },
+  mascotas:         { monto: 10000,  recurrente: false },
+  otro:             { monto: 50000,  recurrente: false },
 };
 
 let presEditCat = '';
@@ -2057,7 +2068,7 @@ function toggleMesPresupuesto() {
 let analVsChart = null, analTendChart = null, analRecChart = null;
 
 // Categorías recurrentes (base)
-const CATS_RECURRENTES = ['supermercado','salud','hogar','educacion','servicios','transporte'];
+const CATS_RECURRENTES = ['supermercado','salud','farmacia','hogar','mantenimiento','educacion','clases_extra','servicios','transporte'];
 
 function renderAnalisis() {
   const mes  = state.mesFiltro;
