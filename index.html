@@ -1203,9 +1203,9 @@ function renderGastos() {
   document.getElementById('mes-label-gastos').textContent = MESES[state.mesFiltro] + ' ' + state.anioFiltro;
   let gm = gastosMes();
 
-  if (state.filtro === 'usuario_jk')  gm = gm.filter(g => g.pagado_por === 'jk');
-  if (state.filtro === 'usuario_ve')  gm = gm.filter(g => g.pagado_por === 've');
-  if (state.filtro === 'banco925')    gm = gm.filter(g => g.fuente === 'banco925');
+  if (state.filtro === 'usuario_jk')  gm = gm.filter(g => g.pagado_por === 'jk' && g.fuente !== 'banco925');
+  if (state.filtro === 'usuario_ve')  gm = gm.filter(g => g.pagado_por === 've' && g.fuente !== 'banco925');
+  if (state.filtro === 'banco925')    gm = gm.filter(g => g.fuente === 'banco925' || g.pagado_por === '925');
   const filtrosEspeciales = ['todos','usuario_jk','usuario_ve','banco925'];
   if (!filtrosEspeciales.includes(state.filtro)) gm = gm.filter(g => g.categoria === state.filtro);
 
@@ -1234,18 +1234,24 @@ function renderGastos() {
 
 function gastoHTML(g, acciones) {
   const cat = CATEGORIAS.find(c => c.key === g.categoria) || { emoji:'📦', label: g.categoria };
-  const isJK = g.pagado_por === 'jk';
+  const isJK  = g.pagado_por === 'jk';
+  const isVE  = g.pagado_por === 've';
+  const is925 = g.pagado_por === '925' || g.fuente === 'banco925';
+  const iconBg = is925 ? 'rgba(245,158,11,.1)' : isJK ? 'rgba(59,130,246,.1)' : 'rgba(16,185,129,.1)';
   return `
   <div class="gasto-item" id="gasto-${g.id}">
-    <div class="gasto-cat-icon" style="background:${isJK?'rgba(59,130,246,.1)':'rgba(16,185,129,.1)'}">
+    <div class="gasto-cat-icon" style="background:${iconBg}">
       ${cat.emoji}
     </div>
     <div class="gasto-info">
       <div class="gasto-desc">${g.descripcion}</div>
       <div class="gasto-meta">
-        <span class="tag ${isJK?'tag-jk':'tag-ve'}">${isJK?'JK':'VE'}</span>
-        ${g.fuente==='banco925' ? '<span class="tag tag-925" style="margin-left:4px;">925</span>' : ''}
-        ${g.fuente==='bcr' ? '<span class="tag tag-bcr" style="margin-left:4px;">BCR</span>' : ''}
+        ${is925
+          ? '<span class="tag tag-925">925</span>'
+          : isJK
+            ? '<span class="tag tag-jk">JK</span>'
+            : '<span class="tag tag-ve">VE</span>'
+        }
         &nbsp;${cat.label}
       </div>
     </div>
