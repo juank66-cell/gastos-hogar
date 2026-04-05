@@ -184,8 +184,10 @@ select.form-input { appearance:none; }
 
 /* ---- TAGS ---- */
 .tag { display:inline-block; font-size:10px; padding:2px 8px; border-radius:20px; font-weight:500; }
-.tag-jk { background:rgba(59,130,246,.15); color:#60a5fa; }
-.tag-ve { background:rgba(16,185,129,.15); color:#34d399; }
+.tag-jk  { background:rgba(59,130,246,.15); color:#60a5fa; }
+.tag-ve  { background:rgba(16,185,129,.15); color:#34d399; }
+.tag-925 { background:rgba(245,158,11,.15); color:#fbbf24; }
+.tag-bcr { background:rgba(139,92,246,.15); color:#c084fc; }
 
 /* ---- DONUT ---- */
 .chart-wrap { position:relative; width:140px; height:140px; margin:0 auto; }
@@ -276,7 +278,7 @@ select.form-input { appearance:none; }
     <div class="header">
       <div>
         <div class="header-title" id="greeting">Inicio</div>
-        <div class="header-sub" id="greeting-sub">Cargando...</div>
+        <div class="header-sub" id="greeting-sub" style="cursor:pointer;" onclick="abrirSelectorMes('inicio')">Cargando... ▾</div>
       </div>
       <div class="avatar-sm" id="header-avatar"></div>
     </div>
@@ -345,6 +347,7 @@ select.form-input { appearance:none; }
       <div class="tab-pill active" onclick="setFilter('todos')">Todos</div>
       <div class="tab-pill" onclick="setFilter('yo')">Mis gastos</div>
       <div class="tab-pill" onclick="setFilter('otro')">Del otro</div>
+      <div class="tab-pill" onclick="setFilter('banco925')">Banco 925</div>
       <div class="tab-pill" onclick="setFilter('supermercado')">Supermercado</div>
       <div class="tab-pill" onclick="setFilter('salud')">Salud</div>
       <div class="tab-pill" onclick="setFilter('hogar')">Hogar</div>
@@ -845,6 +848,42 @@ select.form-input { appearance:none; }
   </div>
 </div>
 
+<!-- DRAWER SELECTOR MES -->
+<div class="overlay" id="mes-overlay" onclick="cerrarDrawer('mes-overlay')">
+  <div class="drawer" onclick="event.stopPropagation()">
+    <div class="drawer-handle"></div>
+    <div class="drawer-title">Seleccioná el mes</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;">
+      <div>
+        <label class="form-label">Mes</label>
+        <select class="form-input" id="mes-sel-mes">
+          <option value="1">Enero</option>
+          <option value="2">Febrero</option>
+          <option value="3">Marzo</option>
+          <option value="4">Abril</option>
+          <option value="5">Mayo</option>
+          <option value="6">Junio</option>
+          <option value="7">Julio</option>
+          <option value="8">Agosto</option>
+          <option value="9">Septiembre</option>
+          <option value="10">Octubre</option>
+          <option value="11">Noviembre</option>
+          <option value="12">Diciembre</option>
+        </select>
+      </div>
+      <div>
+        <label class="form-label">Año</label>
+        <select class="form-input" id="mes-sel-anio">
+          <option value="2025">2025</option>
+          <option value="2026" selected>2026</option>
+          <option value="2027">2027</option>
+        </select>
+      </div>
+    </div>
+    <button class="btn btn-primary" onclick="aplicarSelectorMes()">Aplicar</button>
+  </div>
+</div>
+
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 
@@ -1093,9 +1132,10 @@ function renderGastos() {
   document.getElementById('mes-label-gastos').textContent = MESES[state.mesFiltro] + ' ' + state.anioFiltro;
   let gm = gastosMes();
 
-  if (state.filtro === 'yo')    gm = gm.filter(g => g.pagado_por === state.user.id);
-  if (state.filtro === 'otro')  gm = gm.filter(g => g.pagado_por !== state.user.id);
-  if (!['todos','yo','otro'].includes(state.filtro)) gm = gm.filter(g => g.categoria === state.filtro);
+  if (state.filtro === 'yo')       gm = gm.filter(g => g.pagado_por === state.user.id);
+  if (state.filtro === 'otro')     gm = gm.filter(g => g.pagado_por !== state.user.id);
+  if (state.filtro === 'banco925') gm = gm.filter(g => g.fuente === 'banco925');
+  if (!['todos','yo','otro','banco925'].includes(state.filtro)) gm = gm.filter(g => g.categoria === state.filtro);
 
   const el = document.getElementById('gastos-list');
   if (gm.length === 0) {
@@ -1132,6 +1172,8 @@ function gastoHTML(g, acciones) {
       <div class="gasto-desc">${g.descripcion}</div>
       <div class="gasto-meta">
         <span class="tag ${isJK?'tag-jk':'tag-ve'}">${isJK?'JK':'VE'}</span>
+        ${g.fuente==='banco925' ? '<span class="tag tag-925" style="margin-left:4px;">925</span>' : ''}
+        ${g.fuente==='bcr' ? '<span class="tag tag-bcr" style="margin-left:4px;">BCR</span>' : ''}
         &nbsp;${cat.label}
       </div>
     </div>
@@ -1158,11 +1200,7 @@ function setFilter(f) {
 }
 
 function toggleMesPicker() {
-  const mes = prompt('Mes (1-12):', state.mesFiltro);
-  if (mes && !isNaN(mes) && mes >= 1 && mes <= 12) {
-    state.mesFiltro = parseInt(mes);
-    renderGastos();
-  }
+  abrirSelectorMes('gastos');
 }
 
 // ============================================================
@@ -1465,13 +1503,62 @@ function renderBCRPreview(movs) {
 
 async function importarBCR() {
   if (state.movBCR.length === 0) return;
+
+  // Clasificar débitos como gastos banco 925 (excluir aportes, liquidaciones e intereses)
+  const tiposExcluir = ['aporte','liquidacion','interes'];
+  const gastosNoCubiertos = ['hipoteca','servicio','educacion','hogar','impuesto','pago'];
+
+  const gastosParaRegistrar = state.movBCR
+    .filter(m => m.debito > 0 && !tiposExcluir.includes(m.tipo))
+    .map(m => {
+      const fecha = m.fecha;
+      const parts = fecha.split('-');
+      // Mapear tipo BCR a categoría de la app
+      const catMap = {
+        hipoteca:  'servicios',
+        servicio:  'servicios',
+        educacion: 'educacion',
+        hogar:     'hogar',
+        impuesto:  'servicios',
+        pago:      'hogar',
+        otro:      'otro',
+      };
+      return {
+        id: 'bcr_' + m.documento,
+        fecha,
+        descripcion: m.descripcion,
+        categoria: catMap[m.tipo] || 'otro',
+        monto: m.debito,
+        pagado_por: '925',
+        fuente: 'banco925',
+        mes: parseInt(parts[1]),
+        anio: parseInt(parts[0]),
+        timestamp: new Date().toISOString(),
+        editado: false,
+      };
+    });
+
+  // Importar movimientos al historial BCR
   if (API_URL) {
     const res = await api('importarBCR', { movimientos: state.movBCR });
-    showToast(res.ok ? `${res.agregados} movimientos importados` : 'Error al importar');
+    // También registrar como gastos banco 925
+    for (const g of gastosParaRegistrar) {
+      await api('agregarGasto', g);
+    }
+    showToast(`${res.agregados || 0} movimientos + ${gastosParaRegistrar.length} gastos importados`);
   } else {
-    showToast(state.movBCR.length + ' movimientos procesados (modo demo)');
+    // Modo demo: agregar a estado local
+    gastosParaRegistrar.forEach(g => {
+      if (!state.gastos.find(x => x.id === g.id)) {
+        state.gastos.unshift(g);
+      }
+    });
+    showToast(gastosParaRegistrar.length + ' gastos banco 925 registrados');
   }
+
   document.getElementById('bcr-actions').style.display = 'none';
+  renderGastos();
+  cargarInicio();
 }
 
 // ============================================================
@@ -1875,11 +1962,7 @@ async function sugerirPresupuesto() {
 }
 
 function toggleMesPresupuesto() {
-  const mes = prompt('Mes (1-12):', state.mesFiltro);
-  if (mes && !isNaN(mes) && mes >= 1 && mes <= 12) {
-    state.mesFiltro = parseInt(mes);
-    renderPresupuesto();
-  }
+  abrirSelectorMes('presupuesto');
 }
 
 // ============================================================
@@ -2208,6 +2291,44 @@ async function confirmarNuevoPin() {
   localStorage.setItem('pin', pinNuevo);
   cerrarDrawer('pin-overlay');
   showToast('PIN cambiado correctamente ✓');
+}
+
+
+// ============================================================
+// SELECTOR DE MES
+// ============================================================
+let mesSelectorOrigen = 'gastos';
+
+function abrirSelectorMes(origen) {
+  mesSelectorOrigen = origen;
+  document.getElementById('mes-sel-mes').value = state.mesFiltro;
+  document.getElementById('mes-sel-anio').value = state.anioFiltro;
+  abrirDrawer('mes-overlay');
+}
+
+function aplicarSelectorMes() {
+  state.mesFiltro = parseInt(document.getElementById('mes-sel-mes').value);
+  state.anioFiltro = parseInt(document.getElementById('mes-sel-anio').value);
+  cerrarDrawer('mes-overlay');
+
+  // Actualizar labels visibles
+  const label = MESES[state.mesFiltro] + ' ' + state.anioFiltro;
+  const elGastos = document.getElementById('mes-label-gastos');
+  const elPres   = document.getElementById('pres-mes-btn');
+  const elGreet  = document.getElementById('greeting-sub');
+  const elInicio = document.getElementById('mes-label-inicio');
+  const elPresLbl= document.getElementById('pres-mes-label');
+
+  if (elGastos) elGastos.textContent = MESES[state.mesFiltro] + ' ' + state.anioFiltro;
+  if (elPres)   elPres.textContent   = MESES[state.mesFiltro];
+  if (elGreet)  elGreet.textContent  = label;
+  if (elInicio) elInicio.textContent = MESES[state.mesFiltro];
+  if (elPresLbl) elPresLbl.textContent = MESES[state.mesFiltro] + ' ' + state.anioFiltro;
+
+  // Renderizar la pantalla correspondiente
+  if (mesSelectorOrigen === 'gastos')      renderGastos();
+  if (mesSelectorOrigen === 'presupuesto') renderPresupuesto();
+  if (mesSelectorOrigen === 'inicio')      cargarInicio();
 }
 
 // ============================================================
