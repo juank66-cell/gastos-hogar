@@ -1244,7 +1244,10 @@ function gastoHTML(g, acciones) {
       ${cat.emoji}
     </div>
     <div class="gasto-info">
-      <div class="gasto-desc">${g.descripcion}</div>
+      <div style="display:flex;align-items:baseline;gap:8px;">
+        <div class="gasto-desc">${g.descripcion}</div>
+        <div style="font-size:12px;color:var(--text3);white-space:nowrap;flex-shrink:0;">${formatFechaCorta(g.fecha)}</div>
+      </div>
       <div class="gasto-meta">
         ${is925
           ? '<span class="tag tag-925">925</span>'
@@ -1703,6 +1706,14 @@ function showToast(msg) {
 function fmt(n) {
   const v = parseFloat(n) || 0;
   return '₡' + Math.round(v).toLocaleString('es-CR');
+}
+
+function formatFechaCorta(f) {
+  if (!f) return '';
+  try {
+    const [y,m,d] = String(f).split('T')[0].split('-');
+    return `${parseInt(d)}/${parseInt(m)}`;
+  } catch(e) { return ''; }
 }
 
 function formatFecha(f) {
