@@ -1970,7 +1970,12 @@ function renderPresupuesto() {
   // Lista por categoría
   const alertas = [];
   const listEl = document.getElementById('pres-cat-list');
-  listEl.innerHTML = CATEGORIAS.map(c => {
+  const catsSorted = [...CATEGORIAS].sort((a, b) => {
+    const ra = gm.filter(g => g.categoria === a.key).reduce((s,g) => s + parseFloat(g.monto||0), 0);
+    const rb = gm.filter(g => g.categoria === b.key).reduce((s,g) => s + parseFloat(g.monto||0), 0);
+    return rb - ra;
+  });
+  listEl.innerHTML = catsSorted.map(c => {
     const p     = pres[c.key] || PRESUPUESTO_BASE[c.key] || { monto: 0, recurrente: false };
     const real  = gm.filter(g => g.categoria === c.key).reduce((s,g) => s + parseFloat(g.monto||0), 0);
     const ratio = p.monto > 0 ? real/p.monto : (real > 0 ? 2 : 0);
@@ -2002,10 +2007,16 @@ function renderPresupuesto() {
 function renderPresChart(pres, gm) {
   const canvas = document.getElementById('pres-bar-chart');
   if (!canvas) return;
-  const cats = CATEGORIAS.filter(c => {
+  let cats = CATEGORIAS.filter(c => {
     const p = pres[c.key] || PRESUPUESTO_BASE[c.key] || { monto: 0 };
     const r = gm.filter(g => g.categoria === c.key).reduce((s,g) => s + parseFloat(g.monto||0), 0);
     return p.monto > 0 || r > 0;
+  });
+  // Ordenar por gasto real de mayor a menor
+  cats = cats.sort((a, b) => {
+    const ra = gm.filter(g => g.categoria === a.key).reduce((s,g) => s + parseFloat(g.monto||0), 0);
+    const rb = gm.filter(g => g.categoria === b.key).reduce((s,g) => s + parseFloat(g.monto||0), 0);
+    return rb - ra;
   });
   const labels  = cats.map(c => c.emoji + ' ' + c.label.substring(0,8));
   const presDat = cats.map(c => (pres[c.key] || PRESUPUESTO_BASE[c.key] || { monto: 0 }).monto);
@@ -2148,10 +2159,16 @@ function renderAnalisis() {
     : '<div class="alert alert-ok" style="margin-bottom:6px;">✓ Todas las categorías dentro del presupuesto</div>';
 
   // --- REAL VS PRESUPUESTO ---
-  const cats = CATEGORIAS.filter(c => {
+  let cats = CATEGORIAS.filter(c => {
     const p = (pres[c.key] || PRESUPUESTO_BASE[c.key] || { monto: 0 }).monto;
     const r = gm.filter(g => g.categoria === c.key).reduce((s,g) => s + parseFloat(g.monto||0), 0);
     return p > 0 || r > 0;
+  });
+  // Ordenar por gasto real de mayor a menor
+  cats = cats.sort((a, b) => {
+    const ra = gm.filter(g => g.categoria === a.key).reduce((s,g) => s + parseFloat(g.monto||0), 0);
+    const rb = gm.filter(g => g.categoria === b.key).reduce((s,g) => s + parseFloat(g.monto||0), 0);
+    return rb - ra;
   });
   const presData = cats.map(c => (pres[c.key] || PRESUPUESTO_BASE[c.key] || { monto: 0 }).monto);
   const realData = cats.map(c => gm.filter(g => g.categoria === c.key).reduce((s,g) => s + parseFloat(g.monto||0), 0));
